@@ -1,0 +1,80 @@
+package com.nyaa.sukiniyaa.data.model
+
+import android.os.Parcelable
+import kotlinx.parcelize.Parcelize
+
+@Parcelize
+data class Torrent(
+    val id: String,
+    val title: String,
+    val link: String,
+    val guid: String,
+    val pubDate: String,
+    val seeders: Int,
+    val leechers: Int,
+    val downloads: Int,
+    val infoHash: String,
+    val category: String,
+    val size: String,
+    val comments: Int,
+    val trusted: Boolean,
+    val remake: Boolean,
+    val magnetLink: String
+) : Parcelable
+
+enum class SortField(val value: String, val displayName: String) {
+    DATE("id", "Date"),
+    SEEDERS("seeders", "Seeders"),
+    LEECHERS("leechers", "Leechers"),
+    SIZE("size", "Size"),
+    DOWNLOADS("downloads", "Downloads"),
+    COMMENTS("comments", "Comments")
+}
+
+enum class SortOrder(val value: String, val displayName: String) {
+    DESC("desc", "Descending"),
+    ASC("asc", "Ascending")
+}
+
+enum class FilterOption(val value: Int, val displayName: String) {
+    ALL(0, "No Filter"),
+    NO_REMAKES(1, "No Remakes"),
+    TRUSTED(2, "Trusted Only")
+}
+
+data class Category(val value: String, val displayName: String)
+
+val CATEGORIES = listOf(
+    Category("0_0", "All Categories"),
+    Category("1_0", "Art"),
+    Category("1_1", "Art - Anime"),
+    Category("1_2", "Art - Doujinshi"),
+    Category("1_3", "Art - Games"),
+    Category("1_4", "Art - Manga"),
+    Category("1_5", "Art - Pictures"),
+    Category("2_0", "Real Life"),
+    Category("2_1", "Real Life - Photobooks / Pictures"),
+    Category("2_2", "Real Life - Videos")
+)
+
+data class SearchParams(
+    val query: String = "",
+    val category: Category = CATEGORIES[0],
+    val filter: FilterOption = FilterOption.ALL,
+    val sortField: SortField = SortField.DATE,
+    val sortOrder: SortOrder = SortOrder.DESC,
+    val page: Int = 1
+)
+
+data class TorrentComment(
+    val id: String,
+    val username: String,
+    val avatarUrl: String,
+    val date: String,
+    val content: String
+)
+
+data class TorrentPageData(
+    val description: String,
+    val comments: List<TorrentComment>
+)
