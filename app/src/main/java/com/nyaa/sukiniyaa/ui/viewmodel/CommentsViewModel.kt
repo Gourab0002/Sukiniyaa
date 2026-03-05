@@ -3,6 +3,7 @@ package com.nyaa.sukiniyaa.ui.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.nyaa.sukiniyaa.data.model.TorrentComment
+import com.nyaa.sukiniyaa.data.model.TorrentFileEntry
 import com.nyaa.sukiniyaa.data.repository.SukebeiRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -12,6 +13,7 @@ import kotlinx.coroutines.launch
 
 data class CommentsUiState(
     val description: String = "",
+    val fileList: List<TorrentFileEntry> = emptyList(),
     val comments: List<TorrentComment> = emptyList(),
     val isLoading: Boolean = false,
     val error: String? = null,
@@ -32,7 +34,7 @@ class CommentsViewModel : ViewModel() {
             val result = repository.fetchTorrentPageData(torrentId)
             result.fold(
                 onSuccess = { pageData ->
-                    _uiState.update { it.copy(isLoading = false, description = pageData.description, comments = pageData.comments, hasFetched = true) }
+                    _uiState.update { it.copy(isLoading = false, description = pageData.description, fileList = pageData.fileList, comments = pageData.comments, hasFetched = true) }
                 },
                 onFailure = { e ->
                     _uiState.update { it.copy(isLoading = false, error = e.message ?: "Failed to load details", hasFetched = true) }
