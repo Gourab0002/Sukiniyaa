@@ -94,6 +94,8 @@ import com.nyaa.sukiniyaa.ui.theme.NyaaTrusted
 import com.nyaa.sukiniyaa.ui.viewmodel.SearchViewModel
 import kotlinx.coroutines.launch
 
+private const val LOAD_MORE_BUFFER = 3
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SearchScreen(
@@ -282,7 +284,7 @@ fun SearchScreen(
                         derivedStateOf {
                             val lastVisibleItem = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
                             val totalItems = listState.layoutInfo.totalItemsCount
-                            totalItems > 0 && lastVisibleItem >= totalItems - 3
+                            totalItems > 0 && lastVisibleItem >= totalItems - LOAD_MORE_BUFFER
                         }
                     }
 
