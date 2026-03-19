@@ -7,10 +7,12 @@ A native Android app for searching torrents on [sukebei.nyaa.si](https://sukebei
 ## Features
 
 - **Full-text search** — find any torrent by title or keyword
+- **Infinite scrolling** — seamlessly load more search results as you browse
 - **Category filtering** — narrow results to Art (Anime, Doujinshi, Games, Manga, Pictures) and Real Life (Photobooks / Pictures, Videos) sub-categories
 - **Quality filter** — show all results, exclude remakes, or display trusted uploads only
 - **Flexible sorting** — sort by Date, Seeders, Leechers, Size, Downloads, or Comments in ascending or descending order
 - **Torrent cards** — each result shows title, category badge, Trusted / Remake status, file size, publish date, seeder count, leecher count, and download count at a glance
+- **Search UI refresh** — revamped search bar, improved empty/loading states, and polished filter sheet styling
 - **Detail screen** — view full torrent metadata plus one-tap actions:
   - Open magnet link in any torrent client
   - Copy magnet link to clipboard
