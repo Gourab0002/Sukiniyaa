@@ -40,6 +40,21 @@ internal fun sortTorrents(torrents: List<Torrent>, params: SearchParams): List<T
     return if (params.sortOrder == SortOrder.DESC) sorted.reversed() else sorted
 }
 
+internal fun buildSearchUrl(params: SearchParams): String {
+    val sb = StringBuilder("https://sukebei.nyaa.si/?page=rss")
+    if (params.query.isNotBlank()) {
+        sb.append("&q=${java.net.URLEncoder.encode(params.query.trim(), "UTF-8")}")
+    }
+    sb.append("&c=${params.category.value}")
+    sb.append("&f=${params.filter.value}")
+    sb.append("&s=${params.sortField.value}")
+    sb.append("&o=${params.sortOrder.value}")
+    if (params.page > 1) {
+        sb.append("&p=${params.page}")
+    }
+    return sb.toString()
+}
+
 class SukebeiRepository {
 
     private val client = OkHttpClient.Builder()
@@ -50,7 +65,7 @@ class SukebeiRepository {
     suspend fun search(params: SearchParams): Result<List<Torrent>> {
         return withContext(Dispatchers.IO) {
             try {
-                val url = buildUrl(params)
+                val url = buildSearchUrl(params)
                 val request = Request.Builder()
                     .url(url)
                     .header("User-Agent", "Sukiniyaa/1.0 (Android)")
@@ -93,15 +108,4 @@ class SukebeiRepository {
         }
     }
 
-    private fun buildUrl(params: SearchParams): String {
-        val sb = StringBuilder("https://sukebei.nyaa.si/?page=rss")
-        if (params.query.isNotBlank()) {
-            sb.append("&q=${java.net.URLEncoder.encode(params.query.trim(), "UTF-8")}")
-        }
-        sb.append("&c=${params.category.value}")
-        sb.append("&f=${params.filter.value}")
-        sb.append("&s=${params.sortField.value}")
-        sb.append("&o=${params.sortOrder.value}")
-        return sb.toString()
-    }
 }

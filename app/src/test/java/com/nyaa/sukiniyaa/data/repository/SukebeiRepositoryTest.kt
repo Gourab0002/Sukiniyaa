@@ -163,4 +163,42 @@ class SukebeiRepositoryTest {
     }
 
     // endregion
+
+    // region buildSearchUrl
+
+    @Test
+    fun buildSearchUrl_omitsPageForFirstPage() {
+        val params = SearchParams(
+            query = "test query",
+            category = CATEGORIES[1],
+            filter = FilterOption.TRUSTED,
+            sortField = SortField.SEEDERS,
+            sortOrder = SortOrder.ASC,
+            page = 1
+        )
+
+        assertEquals(
+            "https://sukebei.nyaa.si/?page=rss&q=test+query&c=1_0&f=2&s=seeders&o=asc",
+            buildSearchUrl(params)
+        )
+    }
+
+    @Test
+    fun buildSearchUrl_includesPageForNextPages() {
+        val params = SearchParams(
+            query = "another test",
+            category = CATEGORIES[2],
+            filter = FilterOption.NO_REMAKES,
+            sortField = SortField.DOWNLOADS,
+            sortOrder = SortOrder.DESC,
+            page = 3
+        )
+
+        assertEquals(
+            "https://sukebei.nyaa.si/?page=rss&q=another+test&c=1_1&f=1&s=downloads&o=desc&p=3",
+            buildSearchUrl(params)
+        )
+    }
+
+    // endregion
 }
