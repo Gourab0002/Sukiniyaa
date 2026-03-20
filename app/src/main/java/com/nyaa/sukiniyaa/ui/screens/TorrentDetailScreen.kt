@@ -318,10 +318,6 @@ fun TorrentDetailScreen(
                 }
             }
 
-            if (commentsState.fileList.isNotEmpty()) {
-                FileListCard(fileList = commentsState.fileList)
-            }
-
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(
@@ -401,6 +397,10 @@ fun TorrentDetailScreen(
                         }
                     }
                 }
+            }
+
+            if (commentsState.fileList.isNotEmpty()) {
+                FileListCard(fileList = commentsState.fileList)
             }
 
             Card(
