@@ -16,9 +16,11 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.outlined.BookmarkBorder
+import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Icon
@@ -44,9 +46,13 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.nyaa.sukiniyaa.data.model.Torrent
 import com.nyaa.sukiniyaa.ui.screens.BookmarksScreen
+import com.nyaa.sukiniyaa.ui.screens.SearchHistoryScreen
 import com.nyaa.sukiniyaa.ui.screens.SearchScreen
 import com.nyaa.sukiniyaa.ui.screens.SettingsScreen
 import com.nyaa.sukiniyaa.ui.screens.TorrentDetailScreen
+import com.nyaa.sukiniyaa.ui.viewmodel.SearchHistoryViewModel
+import com.nyaa.sukiniyaa.ui.viewmodel.SearchViewModel
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.nyaa.sukiniyaa.ui.theme.SukiniyaaTheme
 import com.nyaa.sukiniyaa.ui.theme.ThemePreferences
 
@@ -84,6 +90,7 @@ private data class BottomNavItem(
 
 private val bottomNavItems = listOf(
     BottomNavItem("search", "Search", Icons.Filled.Search, Icons.Outlined.Search),
+    BottomNavItem("history", "History", Icons.Filled.History, Icons.Outlined.History),
     BottomNavItem("bookmarks", "Bookmarks", Icons.Filled.Bookmark, Icons.Outlined.BookmarkBorder),
     BottomNavItem("settings", "Settings", Icons.Filled.Settings, Icons.Outlined.Settings)
 )
@@ -97,6 +104,8 @@ fun SukiniyaaApp(
     var selectedTorrent by rememberSaveable { mutableStateOf<Torrent?>(null) }
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
+    val searchHistoryViewModel: SearchHistoryViewModel = viewModel()
+    val searchViewModel: SearchViewModel = viewModel()
 
     val showBottomBar = currentRoute != "detail"
 
@@ -168,6 +177,22 @@ fun SukiniyaaApp(
                         selectedTorrent = torrent
                         navController.navigate("detail")
                     },
+                    bottomPadding = innerPadding.calculateBottomPadding(),
+                    searchViewModel = searchViewModel,
+                    searchHistoryViewModel = searchHistoryViewModel
+                )
+            }
+            composable("history") {
+                SearchHistoryScreen(
+                    onHistoryItemClick = { query ->
+                        searchViewModel.updateQuery(query)
+                        searchViewModel.search()
+                        navController.navigate("search") {
+                            popUpTo("search") { inclusive = true }
+                            launchSingleTop = true
+                        }
+                    },
+                    searchHistoryViewModel = searchHistoryViewModel,
                     bottomPadding = innerPadding.calculateBottomPadding()
                 )
             }

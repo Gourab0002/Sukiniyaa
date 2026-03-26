@@ -91,6 +91,7 @@ import com.nyaa.sukiniyaa.ui.theme.NyaaLeecher
 import com.nyaa.sukiniyaa.ui.theme.NyaaRemake
 import com.nyaa.sukiniyaa.ui.theme.NyaaSeeder
 import com.nyaa.sukiniyaa.ui.theme.NyaaTrusted
+import com.nyaa.sukiniyaa.ui.viewmodel.SearchHistoryViewModel
 import com.nyaa.sukiniyaa.ui.viewmodel.SearchViewModel
 import kotlinx.coroutines.launch
 
@@ -100,9 +101,11 @@ private const val LOAD_MORE_BUFFER = 3
 @Composable
 fun SearchScreen(
     onTorrentClick: (Torrent) -> Unit,
-    viewModel: SearchViewModel = viewModel(),
+    searchViewModel: SearchViewModel = viewModel(),
+    searchHistoryViewModel: SearchHistoryViewModel = viewModel(),
     bottomPadding: Dp = 0.dp
 ) {
+    val viewModel = searchViewModel
     val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -141,6 +144,9 @@ fun SearchScreen(
                             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                             keyboardActions = KeyboardActions(onSearch = {
                                 keyboardController?.hide()
+                                if (uiState.query.isNotBlank()) {
+                                    searchHistoryViewModel.addEntry(uiState.query)
+                                }
                                 viewModel.search()
                             }),
                             trailingIcon = {
@@ -356,6 +362,9 @@ fun SearchScreen(
                 onApply = {
                     scope.launch { sheetState.hide() }
                         .invokeOnCompletion { showFilterSheet = false }
+                    if (uiState.query.isNotBlank()) {
+                        searchHistoryViewModel.addEntry(uiState.query)
+                    }
                     viewModel.search()
                 }
             )
