@@ -260,16 +260,20 @@ private fun SearchHistoryCard(
     }
 }
 
+private val historyDateFormatter: SimpleDateFormat by lazy {
+    SimpleDateFormat("MMM d, yyyy", Locale.getDefault())
+}
+
 private fun formatTimestamp(timestamp: Long): String {
     val now = System.currentTimeMillis()
     val diff = now - timestamp
 
     return when {
-        diff < 0 -> SimpleDateFormat("MMM d, yyyy", Locale.getDefault()).format(Date(timestamp))
+        diff < 0 -> historyDateFormatter.format(Date(timestamp))
         diff < 60_000 -> "Just now"
         diff < 3_600_000 -> "${diff / 60_000}m ago"
         diff < 86_400_000 -> "${diff / 3_600_000}h ago"
         diff < 604_800_000 -> "${diff / 86_400_000}d ago"
-        else -> SimpleDateFormat("MMM d, yyyy", Locale.getDefault()).format(Date(timestamp))
+        else -> historyDateFormatter.format(Date(timestamp))
     }
 }

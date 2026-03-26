@@ -37,7 +37,8 @@ class SearchHistoryRepository(context: Context) {
     }
 
     fun removeEntry(query: String) {
-        val history = getHistory().filter { !it.query.equals(query, ignoreCase = true) }
+        val trimmedQuery = query.trim()
+        val history = getHistory().filter { !it.query.equals(trimmedQuery, ignoreCase = true) }
         saveHistory(history)
     }
 
