@@ -178,7 +178,8 @@ fun SearchScreen(
                         )
                         Surface(
                             shape = CircleShape,
-                            color = MaterialTheme.colorScheme.surfaceContainerHigh
+                            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                            modifier = Modifier.padding(end = 8.dp)
                         ) {
                             IconButton(onClick = { showFilterSheet = true }) {
                                 Icon(
