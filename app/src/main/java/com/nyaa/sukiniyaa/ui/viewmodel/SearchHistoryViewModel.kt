@@ -2,12 +2,15 @@ package com.nyaa.sukiniyaa.ui.viewmodel
 
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
 import com.nyaa.sukiniyaa.data.repository.SearchHistoryEntry
 import com.nyaa.sukiniyaa.data.repository.SearchHistoryRepository
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class SearchHistoryViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -21,21 +24,35 @@ class SearchHistoryViewModel(application: Application) : AndroidViewModel(applic
     }
 
     private fun loadHistory() {
-        _history.update { repository.getHistory() }
+        viewModelScope.launch {
+            _history.value = withContext(Dispatchers.IO) { repository.getHistory() }
+        }
     }
 
     fun addEntry(query: String) {
-        repository.addEntry(query)
-        loadHistory()
+        viewModelScope.launch {
+            _history.value = withContext(Dispatchers.IO) {
+                repository.addEntry(query)
+                repository.getHistory()
+            }
+        }
     }
 
     fun removeEntry(query: String) {
-        repository.removeEntry(query)
-        loadHistory()
+        viewModelScope.launch {
+            _history.value = withContext(Dispatchers.IO) {
+                repository.removeEntry(query)
+                repository.getHistory()
+            }
+        }
     }
 
     fun clearHistory() {
-        repository.clearHistory()
-        loadHistory()
+        viewModelScope.launch {
+            _history.value = withContext(Dispatchers.IO) {
+                repository.clearHistory()
+                repository.getHistory()
+            }
+        }
     }
 }

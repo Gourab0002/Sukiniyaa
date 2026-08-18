@@ -1,5 +1,6 @@
 package com.nyaa.sukiniyaa
 
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -14,7 +15,11 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Search
@@ -23,13 +28,16 @@ import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -37,32 +45,48 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.nyaa.sukiniyaa.data.model.Torrent
 import com.nyaa.sukiniyaa.ui.screens.BookmarksScreen
 import com.nyaa.sukiniyaa.ui.screens.SearchHistoryScreen
 import com.nyaa.sukiniyaa.ui.screens.SearchScreen
 import com.nyaa.sukiniyaa.ui.screens.SettingsScreen
 import com.nyaa.sukiniyaa.ui.screens.TorrentDetailScreen
-import com.nyaa.sukiniyaa.ui.viewmodel.SearchHistoryViewModel
-import com.nyaa.sukiniyaa.ui.viewmodel.SearchViewModel
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.nyaa.sukiniyaa.ui.theme.SukiniyaaTheme
 import com.nyaa.sukiniyaa.ui.theme.ThemePreferences
+import com.nyaa.sukiniyaa.ui.viewmodel.BookmarkViewModel
+import com.nyaa.sukiniyaa.ui.viewmodel.SearchHistoryViewModel
+import com.nyaa.sukiniyaa.ui.viewmodel.SearchViewModel
+import java.net.URLDecoder
+import java.net.URLEncoder
+import java.nio.charset.StandardCharsets
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        // Request high refresh rate for 120Hz displays
-        window.attributes = window.attributes.apply {
-            preferredRefreshRate = 120f
+        val currentDisplay = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            display
+        } else {
+            @Suppress("DEPRECATION")
+            windowManager.defaultDisplay
+        }
+        val maxRefreshRate = currentDisplay?.supportedModes?.maxOfOrNull { it.refreshRate }
+        if (maxRefreshRate != null) {
+            window.attributes = window.attributes.apply {
+                preferredRefreshRate = maxRefreshRate
+            }
         }
         setContent {
             val themePrefs = remember { ThemePreferences(this) }
@@ -95,6 +119,12 @@ private val bottomNavItems = listOf(
     BottomNavItem("settings", "Settings", Icons.Filled.Settings, Icons.Outlined.Settings)
 )
 
+private fun encodeNavId(id: String): String =
+    URLEncoder.encode(id, StandardCharsets.UTF_8.toString())
+
+private fun decodeNavId(id: String): String =
+    URLDecoder.decode(id, StandardCharsets.UTF_8.toString())
+
 @Composable
 fun SukiniyaaApp(
     currentThemeIndex: Int,
@@ -106,8 +136,9 @@ fun SukiniyaaApp(
     val currentRoute = navBackStackEntry?.destination?.route
     val searchHistoryViewModel: SearchHistoryViewModel = viewModel()
     val searchViewModel: SearchViewModel = viewModel()
+    val bookmarkViewModel: BookmarkViewModel = viewModel()
 
-    val showBottomBar = currentRoute != "detail"
+    val showBottomBar = currentRoute?.startsWith("detail") != true
 
     Scaffold(
         bottomBar = {
@@ -175,7 +206,7 @@ fun SukiniyaaApp(
                 SearchScreen(
                     onTorrentClick = { torrent ->
                         selectedTorrent = torrent
-                        navController.navigate("detail")
+                        navController.navigate("detail/${encodeNavId(torrent.navId())}")
                     },
                     bottomPadding = innerPadding.calculateBottomPadding(),
                     searchViewModel = searchViewModel,
@@ -200,25 +231,67 @@ fun SukiniyaaApp(
                 BookmarksScreen(
                     onTorrentClick = { torrent ->
                         selectedTorrent = torrent
-                        navController.navigate("detail")
+                        navController.navigate("detail/${encodeNavId(torrent.navId())}")
                     },
+                    bookmarkViewModel = bookmarkViewModel,
                     bottomPadding = innerPadding.calculateBottomPadding()
                 )
             }
             composable("settings") {
                 SettingsScreen(
                     currentThemeIndex = currentThemeIndex,
-                    onThemeSelected = onThemeSelected
+                    onThemeSelected = onThemeSelected,
+                    bottomPadding = innerPadding.calculateBottomPadding()
                 )
             }
-            composable("detail") {
-                selectedTorrent?.let { torrent ->
+            composable(
+                route = "detail/{torrentId}",
+                arguments = listOf(navArgument("torrentId") { type = NavType.StringType })
+            ) { entry ->
+                val navId = decodeNavId(entry.arguments?.getString("torrentId").orEmpty())
+                val torrent = selectedTorrent?.takeIf { it.matchesNavId(navId) }
+                    ?: searchViewModel.torrentByNavId(navId)
+                    ?: bookmarkViewModel.torrentByNavId(navId)
+                if (torrent != null) {
                     TorrentDetailScreen(
                         torrent = torrent,
-                        onNavigateBack = { navController.navigateUp() }
+                        onNavigateBack = { navController.navigateUp() },
+                        bookmarkViewModel = bookmarkViewModel
                     )
+                } else {
+                    MissingTorrentScreen(onNavigateBack = { navController.navigateUp() })
                 }
             }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun MissingTorrentScreen(onNavigateBack: () -> Unit) {
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Details") },
+                navigationIcon = {
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                }
+            )
+        }
+    ) { padding ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = "This torrent is no longer available",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }

@@ -11,7 +11,7 @@ data class AppTheme(
 )
 
 val APP_THEMES = listOf(
-    AppTheme("Default Purple", Purple40, PurpleGrey40, Pink40),
+    AppTheme("Material You", Purple40, PurpleGrey40, Pink40),
     AppTheme("Sukebei Red", SukebeiPrimary, SukebeiSecondary, SukebeiTertiary),
     AppTheme("Sakura Pink", Color(0xFFBF3059), Color(0xFF8B1E51), Color(0xFFFF6B9D)),
     AppTheme("Matcha Green", Color(0xFF2E7D32), Color(0xFF1B5E20), Color(0xFF66BB6A)),

@@ -1,23 +1,17 @@
 package com.nyaa.sukiniyaa.ui.screens
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BookmarkBorder
@@ -35,8 +29,8 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -53,9 +47,10 @@ fun BookmarksScreen(
     bookmarkViewModel: BookmarkViewModel = viewModel(),
     bottomPadding: Dp = 0.dp
 ) {
-    val bookmarks by bookmarkViewModel.bookmarks.collectAsState()
+    val bookmarks by bookmarkViewModel.bookmarks.collectAsStateWithLifecycle()
 
     Scaffold(
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             TopAppBar(
                 title = {
@@ -121,51 +116,47 @@ fun BookmarksScreen(
                         bottom = 8.dp + bottomPadding
                     )
                 ) {
-                    items(bookmarks, key = { "${it.id}|${it.infoHash}" }) { torrent ->
+                    itemsIndexed(
+                        items = bookmarks,
+                        key = { index, torrent -> torrent.listKey(index) },
+                        contentType = { _, _ -> "bookmark" }
+                    ) { _, torrent ->
                         val dismissState = rememberSwipeToDismissBoxState(
                             confirmValueChange = { value ->
                                 if (value == SwipeToDismissBoxValue.EndToStart) {
-                                    bookmarkViewModel.removeBookmark(torrent.id)
+                                    bookmarkViewModel.removeBookmark(torrent.id.ifEmpty { torrent.infoHash })
                                     true
                                 } else {
                                     false
                                 }
                             }
                         )
-                        AnimatedVisibility(
-                            visible = true,
-                            enter = fadeIn(
-                                spring(stiffness = Spring.StiffnessLow)
-                            ) + slideInVertically(
-                                spring(stiffness = Spring.StiffnessLow)
-                            ) { it / 3 },
-                            exit = fadeOut(tween(200))
-                        ) {
-                            SwipeToDismissBox(
-                                state = dismissState,
-                                backgroundContent = {
-                                    Box(
-                                        modifier = Modifier.fillMaxSize(),
-                                        contentAlignment = Alignment.CenterEnd
+                        SwipeToDismissBox(
+                            state = dismissState,
+                            backgroundContent = {
+                                Box(
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentAlignment = Alignment.CenterEnd
+                                ) {
+                                    Surface(
+                                        shape = CircleShape,
+                                        color = MaterialTheme.colorScheme.errorContainer,
+                                        modifier = Modifier.padding(end = 16.dp)
                                     ) {
-                                        Surface(
-                                            shape = CircleShape,
-                                            color = MaterialTheme.colorScheme.errorContainer,
-                                            modifier = Modifier.padding(end = 16.dp)
-                                        ) {
-                                            IconButton(onClick = { bookmarkViewModel.removeBookmark(torrent.id) }) {
-                                                Icon(
-                                                    Icons.Default.Delete,
-                                                    contentDescription = "Remove bookmark",
-                                                    tint = MaterialTheme.colorScheme.onErrorContainer
-                                                )
-                                            }
+                                        IconButton(onClick = {
+                                            bookmarkViewModel.removeBookmark(torrent.id.ifEmpty { torrent.infoHash })
+                                        }) {
+                                            Icon(
+                                                Icons.Default.Delete,
+                                                contentDescription = "Remove bookmark",
+                                                tint = MaterialTheme.colorScheme.onErrorContainer
+                                            )
                                         }
                                     }
                                 }
-                            ) {
-                                TorrentCard(torrent = torrent, onClick = { onTorrentClick(torrent) })
                             }
+                        ) {
+                            TorrentCard(torrent = torrent, onClick = { onTorrentClick(torrent) })
                         }
                     }
                 }

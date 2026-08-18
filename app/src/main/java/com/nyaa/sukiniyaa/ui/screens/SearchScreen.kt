@@ -1,10 +1,5 @@
 package com.nyaa.sukiniyaa.ui.screens
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -14,6 +9,7 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -21,7 +17,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -63,13 +59,13 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -93,6 +89,7 @@ import com.nyaa.sukiniyaa.ui.theme.NyaaSeeder
 import com.nyaa.sukiniyaa.ui.theme.NyaaTrusted
 import com.nyaa.sukiniyaa.ui.viewmodel.SearchHistoryViewModel
 import com.nyaa.sukiniyaa.ui.viewmodel.SearchViewModel
+import com.nyaa.sukiniyaa.util.PubDateFormatter
 import kotlinx.coroutines.launch
 
 private const val LOAD_MORE_BUFFER = 3
@@ -106,23 +103,32 @@ fun SearchScreen(
     bottomPadding: Dp = 0.dp
 ) {
     val viewModel = searchViewModel
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior()
     val keyboardController = LocalSoftwareKeyboardController.current
     var showFilterSheet by remember { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val listState = rememberLazyListState()
 
-    LaunchedEffect(uiState.error) {
-        uiState.error?.let { error ->
+    LaunchedEffect(uiState.error, uiState.torrents.isNotEmpty()) {
+        val error = uiState.error
+        if (error != null && uiState.torrents.isNotEmpty()) {
             snackbarHostState.showSnackbar(error)
             viewModel.clearError()
         }
     }
 
+    LaunchedEffect(uiState.isLoading) {
+        if (!uiState.isLoading && uiState.searchParams.page == 1 && uiState.torrents.isNotEmpty()) {
+            listState.scrollToItem(0)
+        }
+    }
+
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             TopAppBar(
                 title = {
@@ -207,7 +213,7 @@ fun SearchScreen(
                 .padding(paddingValues)
         ) {
             when {
-                uiState.isLoading -> {
+                uiState.isLoading && uiState.torrents.isEmpty() -> {
                     Column(
                         modifier = Modifier.align(Alignment.Center),
                         horizontalAlignment = Alignment.CenterHorizontally
@@ -223,6 +229,31 @@ fun SearchScreen(
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
+                    }
+                }
+                uiState.error != null && uiState.torrents.isEmpty() && uiState.hasSearched -> {
+                    Column(
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .padding(horizontal = 32.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = "Search failed",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            text = uiState.error ?: "Unknown error",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(Modifier.height(16.dp))
+                        Button(onClick = { viewModel.search() }) {
+                            Text("Retry")
+                        }
                     }
                 }
                 uiState.torrents.isEmpty() && uiState.hasSearched -> {
@@ -279,14 +310,13 @@ fun SearchScreen(
                         )
                         Spacer(Modifier.height(8.dp))
                         Text(
-                            text = "Find anime, manga, music and more",
+                            text = "Find torrents by title, category, or filter",
                             style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
                 else -> {
-                    val listState = rememberLazyListState()
                     val shouldLoadMore by remember {
                         derivedStateOf {
                             val lastVisibleItem = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
@@ -295,8 +325,8 @@ fun SearchScreen(
                         }
                     }
 
-                    LaunchedEffect(shouldLoadMore, uiState.isLoadingMore, uiState.canLoadMore) {
-                        if (shouldLoadMore && !uiState.isLoadingMore && uiState.canLoadMore) {
+                    LaunchedEffect(shouldLoadMore, uiState.isLoadingMore, uiState.canLoadMore, uiState.isLoading) {
+                        if (shouldLoadMore && !uiState.isLoading && !uiState.isLoadingMore && uiState.canLoadMore) {
                             viewModel.loadNextPage()
                         }
                     }
@@ -312,20 +342,15 @@ fun SearchScreen(
                             bottom = 8.dp + bottomPadding
                         )
                     ) {
-                        items(uiState.torrents, key = { "${it.id}|${it.infoHash}" }) { torrent ->
-                            AnimatedVisibility(
-                                visible = true,
-                                enter = fadeIn(
-                                    spring(stiffness = Spring.StiffnessLow)
-                                ) + slideInVertically(
-                                    spring(stiffness = Spring.StiffnessLow)
-                                ) { it / 3 }
-                            ) {
-                                TorrentCard(torrent = torrent, onClick = { onTorrentClick(torrent) })
-                            }
+                        itemsIndexed(
+                            items = uiState.torrents,
+                            key = { index, torrent -> torrent.listKey(index) },
+                            contentType = { _, _ -> "torrent" }
+                        ) { _, torrent ->
+                            TorrentCard(torrent = torrent, onClick = { onTorrentClick(torrent) })
                         }
                         if (uiState.isLoadingMore) {
-                            item {
+                            item(key = "loading-more", contentType = "loading") {
                                 Box(
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -338,6 +363,19 @@ fun SearchScreen(
                                     )
                                 }
                             }
+                        }
+                    }
+
+                    if (uiState.isLoading) {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(40.dp),
+                                strokeWidth = 3.dp,
+                                color = MaterialTheme.colorScheme.primary
+                            )
                         }
                     }
                 }
@@ -723,7 +761,7 @@ fun TorrentCard(torrent: Torrent, onClick: () -> Unit) {
                 }
 
                 Text(
-                    text = torrent.pubDate.take(11),
+                    text = remember(torrent.pubDate) { PubDateFormatter.format(torrent.pubDate) },
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.outline
                 )

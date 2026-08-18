@@ -1,129 +1,122 @@
-<div align="center">
+# Sukiniyaa
 
-# 🌸 Sukiniyaa
-
-**A native Android client for [sukebei.nyaa.si](https://sukebei.nyaa.si)**
-
-Built with Jetpack Compose & Material 3 for a fast, fluid browsing experience.
+A native Android client for [sukebei.nyaa.si](https://sukebei.nyaa.si). Search, filter, and open torrents from a Material 3 interface built with Jetpack Compose.
 
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.0-7F52FF?logo=kotlin&logoColor=white)](https://kotlinlang.org)
-[![Min SDK](https://img.shields.io/badge/Min%20SDK-24%20(Android%207.0)-brightgreen?logo=android)](https://developer.android.com)
-[![Target SDK](https://img.shields.io/badge/Target%20SDK-35%20(Android%2015)-brightgreen?logo=android)](https://developer.android.com)
+[![Min SDK](https://img.shields.io/badge/Min%20SDK-24-brightgreen?logo=android)](https://developer.android.com)
+[![Target SDK](https://img.shields.io/badge/Target%20SDK-35-brightgreen?logo=android)](https://developer.android.com)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue)](LICENSE)
 
-</div>
+Sukiniyaa is unofficial and is not affiliated with or endorsed by sukebei.nyaa.si.
 
----
+## Features
 
-## ✨ Features
+- **Search** — full-text queries against the public RSS feed, with infinite scroll
+- **Filters** — Art and Real Life categories, plus All / No Remakes / Trusted Only
+- **Sorting** — date, seeders, leechers, size, downloads, or comments (ascending or descending)
+- **Torrent details** — metadata, markdown description, nested file list, and comments
+- **Actions** — open magnet, copy magnet, download `.torrent`, share, or open the listing in a browser
+- **Bookmarks** — save listings locally; swipe to remove
+- **Search history** — last 50 queries, with swipe-to-delete and clear-all
+- **Themes** — Material You on Android 12+, plus Sukebei Red, Sakura Pink, Matcha Green, and Sunset Orange
+- **Edge-to-edge** — content draws behind system bars
 
-| | Feature | Description |
-|---|---|---|
-| 🔍 | **Full-text search** | Find torrents by title or keyword |
-| ♾️ | **Infinite scroll** | Results load seamlessly as you browse |
-| 🗂️ | **Category & quality filters** | Art, Real Life sub-categories; All / No Remakes / Trusted Only |
-| ↕️ | **Flexible sorting** | Date, Seeders, Leechers, Size, Downloads, Comments — asc or desc |
-| 🃏 | **Rich torrent cards** | Title, category badge, trust status, size, date, S/L/D counts |
-| 📄 | **Detail screen** | Full metadata + one-tap magnet open, copy, `.torrent` download, share |
-| 🔖 | **Bookmarks** | Save torrents offline; swipe to remove |
-| 🎨 | **Theme picker** | Purple · Red · Sakura Pink · Matcha Green · Sunset Orange |
-| 🌈 | **Material You** | Dynamic wallpaper colors on Android 12+ |
-| 📐 | **Edge-to-edge UI** | Content draws behind system bars |
+## Requirements
 
----
+- Android Studio Ladybug (2024.2) or newer, **or** JDK 17 + Android SDK API 35 + Build-Tools 35
+- Android 7.0 (API 24) or later on the device / emulator
+- Network access for the first Gradle sync and for live search
 
-## 🛠️ Tech Stack
-
-| Layer | Technology |
-|---|---|
-| Language | Kotlin 2.0 |
-| UI | Jetpack Compose + Material 3 |
-| Architecture | MVVM — `ViewModel` + `StateFlow` |
-| Navigation | Navigation Compose |
-| Networking | OkHttp 4.12 |
-| Parsing | `XmlPullParser` (RSS) · Jsoup (HTML) · Markwon (Markdown) |
-| Image loading | Coil |
-| Async | Kotlin Coroutines |
-
----
-
-## 🚀 Getting Started
-
-### Prerequisites
-
-- **Android Studio** Hedgehog (2023.1.1) or newer  
-  *or* JDK 17 + Android SDK API 35 + Build-Tools 35
-- Internet connection for the first Gradle sync
-
-### Clone & build
+## Build
 
 ```bash
 git clone https://github.com/Gourab0002/Sukiniyaa.git
 cd Sukiniyaa
+```
+
+On Windows use `gradlew.bat` in place of `./gradlew`.
+
+```bash
+./gradlew testDebugUnitTest
 ./gradlew assembleDebug
 ```
 
-Output APK → `app/build/outputs/apk/debug/app-debug.apk`
+Debug APK:
 
-### Run on a device
+```
+app/build/outputs/apk/debug/app-debug.apk
+```
+
+Install on a connected device:
 
 ```bash
 ./gradlew installDebug
 ```
 
-### Open in Android Studio
+In Android Studio: **File → Open** the `Sukiniyaa` directory, wait for Gradle sync, then run the `app` configuration.
 
-1. **File → Open** → select the `Sukiniyaa` folder
-2. Wait for Gradle sync
-3. Press **▶ Run** or `Shift+F10`
+Release builds enable R8 shrinking (`./gradlew assembleRelease`). Sign the output before distributing.
 
----
+## Tests
 
-## ⚙️ How It Works
+Unit tests cover RSS parsing, HTML page parsing (description, file paths, comments), search URL construction, page merge / dedupe, date formatting, and torrent identity.
 
-Sukiniyaa fetches results from the sukebei.nyaa.si **RSS feed**:
-
-```
-https://sukebei.nyaa.si/?page=rss&q=<query>&c=<category>&f=<filter>&s=<sort>&o=<order>
+```bash
+./gradlew testDebugUnitTest
 ```
 
-`SukebeiRssParser` reads the `<item>` elements (including `nyaa:` namespace fields) with `XmlPullParser` and assembles magnet links from the `infoHash` + public trackers — no extra torrent-client API needed.
+CI on `main` and pull requests runs those tests, then builds the debug APK.
 
----
+## How it works
 
-## 🗂️ Project Structure
+Search uses the sukebei RSS endpoint:
+
+```
+https://sukebei.nyaa.si/?page=rss&q=<query>&c=<category>&f=<filter>&s=<sort>&o=<order>&p=<page>
+```
+
+`SukebeiRssParser` reads each `<item>`, including `nyaa:` namespace fields (seeders, size, info hash, trusted, remake). Magnet links are built from the info hash and a short public tracker list — no third-party torrent API is required.
+
+The detail screen fetches the HTML listing and `SukebeiCommentParser` extracts the markdown description, folder-aware file list, and comments.
+
+Local data (bookmarks, search history, theme) is stored in SharedPreferences. Bookmarks and history are not included in Android backups.
+
+## Architecture
+
+MVVM with a single-activity Compose `NavHost`.
+
+| Layer | Role |
+| --- | --- |
+| Kotlin 2.0 | Language |
+| Jetpack Compose + Material 3 | UI |
+| Navigation Compose | Tabs and detail route (`detail/{id}`) |
+| `ViewModel` + `StateFlow` | Screen state |
+| OkHttp | Shared HTTP client; requests cancel with coroutines |
+| XmlPullParser / Jsoup / Markwon | RSS, HTML, and markdown |
+| Coil | Avatars and remote images |
+| Coroutines | I/O and pagination |
 
 ```
 app/src/main/java/com/nyaa/sukiniyaa/
-├── MainActivity.kt              # Entry point & NavHost
+├── MainActivity.kt          Entry point and navigation
 ├── data/
-│   ├── api/                     # RSS + HTML parsers
-│   ├── model/Torrent.kt         # Data models, enums, SearchParams
-│   └── repository/              # Network calls & bookmark storage
-└── ui/
-    ├── screens/                 # Search, Detail, Bookmarks, Settings
-    ├── theme/                   # Colors, typography, Material You
-    └── viewmodel/               # StateFlow-backed ViewModels
+│   ├── api/                 RSS and HTML parsers
+│   ├── model/               Torrent, search params, page data
+│   ├── network/             Shared OkHttp client
+│   └── repository/          Search, bookmarks, history
+├── ui/
+│   ├── screens/             Search, History, Bookmarks, Settings, Detail
+│   ├── theme/               Color schemes and Material You
+│   └── viewmodel/           StateFlow view models
+└── util/                    Date formatting
 ```
 
----
+## Contributing
 
-## 🤝 Contributing
+1. Fork the repository and create a focused feature branch.
+2. Run `./gradlew testDebugUnitTest` before opening a pull request.
+3. Target `main` and describe the change clearly.
 
-1. Fork the repo and create a feature branch.
-2. Keep PRs focused and small.
-3. Open a PR against `main` with a clear description.
+## License
 
----
-
-## 📄 License
-
-Licensed under the [Apache 2.0 License](LICENSE).
-
----
-
-<div align="center">
-
-> ⚠️ **Disclaimer:** Sukiniyaa is an unofficial third-party client and is not affiliated with or endorsed by sukebei.nyaa.si.
-
-</div>
+Licensed under the [Apache License 2.0](LICENSE).

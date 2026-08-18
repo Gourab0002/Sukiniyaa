@@ -20,7 +20,26 @@ data class Torrent(
     val trusted: Boolean,
     val remake: Boolean,
     val magnetLink: String
-) : Parcelable
+) : Parcelable {
+    fun identity(): String = when {
+        id.isNotEmpty() -> id
+        infoHash.isNotEmpty() -> infoHash
+        guid.isNotEmpty() -> guid
+        else -> "$title|$pubDate|$link"
+    }
+
+    fun matchesNavId(navId: String): Boolean =
+        navId.isNotEmpty() && (id == navId || infoHash == navId || navId() == navId)
+
+    fun navId(): String = id.ifBlank { infoHash }.ifBlank { "unknown" }
+
+    fun listKey(index: Int): String = when {
+        id.isNotEmpty() -> "id:$id"
+        infoHash.isNotEmpty() -> "ih:$infoHash"
+        guid.isNotEmpty() -> "g:$guid"
+        else -> "i:$index:${title.hashCode()}:$pubDate"
+    }
+}
 
 enum class SortField(val value: String, val displayName: String) {
     DATE("id", "Date"),

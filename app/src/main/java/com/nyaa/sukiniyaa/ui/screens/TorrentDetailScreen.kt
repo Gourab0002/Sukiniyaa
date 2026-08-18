@@ -1,5 +1,6 @@
 package com.nyaa.sukiniyaa.ui.screens
 
+import android.content.ActivityNotFoundException
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -33,6 +34,7 @@ import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -52,10 +54,10 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -68,6 +70,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.nyaa.sukiniyaa.data.model.Torrent
 import com.nyaa.sukiniyaa.data.model.TorrentComment
 import com.nyaa.sukiniyaa.data.model.TorrentFileEntry
@@ -77,6 +80,7 @@ import com.nyaa.sukiniyaa.ui.theme.NyaaSeeder
 import com.nyaa.sukiniyaa.ui.theme.NyaaTrusted
 import com.nyaa.sukiniyaa.ui.viewmodel.BookmarkViewModel
 import com.nyaa.sukiniyaa.ui.viewmodel.CommentsViewModel
+import com.nyaa.sukiniyaa.util.PubDateFormatter
 import io.noties.markwon.Markwon
 import io.noties.markwon.ext.strikethrough.StrikethroughPlugin
 import io.noties.markwon.ext.tables.TablePlugin
@@ -90,45 +94,58 @@ fun TorrentDetailScreen(
     torrent: Torrent,
     onNavigateBack: () -> Unit,
     bookmarkViewModel: BookmarkViewModel = viewModel(),
-    commentsViewModel: CommentsViewModel = viewModel()
+    commentsViewModel: CommentsViewModel = viewModel(
+        key = torrent.id.ifEmpty { torrent.infoHash }.ifEmpty { torrent.guid }
+    )
 ) {
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
-    val bookmarks by bookmarkViewModel.bookmarks.collectAsState()
-    val isBookmarked = bookmarks.any { it.id == torrent.id }
-    val commentsState by commentsViewModel.uiState.collectAsState()
+    val bookmarks by bookmarkViewModel.bookmarks.collectAsStateWithLifecycle()
+    val isBookmarked = bookmarks.any { it.identity() == torrent.identity() }
+    val commentsState by commentsViewModel.uiState.collectAsStateWithLifecycle()
+    val formattedDate = remember(torrent.pubDate) { PubDateFormatter.format(torrent.pubDate) }
 
     LaunchedEffect(torrent.id) {
-        commentsViewModel.fetchComments(torrent.id)
+        if (torrent.id.isNotBlank()) {
+            commentsViewModel.fetchComments(torrent.id)
+        }
+    }
+
+    fun showMessage(message: String) {
+        scope.launch { snackbarHostState.showSnackbar(message) }
     }
 
     fun openUrl(url: String) {
-        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
-        context.startActivity(intent)
+        try {
+            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+        } catch (_: ActivityNotFoundException) {
+            showMessage("No app found to open this link")
+        } catch (e: Exception) {
+            showMessage("Could not open link: ${e.message}")
+        }
     }
 
     fun copyToClipboard(text: String, label: String) {
         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
         clipboard.setPrimaryClip(ClipData.newPlainText(label, text))
-        scope.launch { snackbarHostState.showSnackbar("Copied to clipboard") }
+        showMessage("Copied to clipboard")
     }
 
     fun downloadTorrent(downloadUrl: String) {
-        try {
-            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(downloadUrl))
-            context.startActivity(intent)
-        } catch (e: Exception) {
-            scope.launch { snackbarHostState.showSnackbar("Could not open download link: ${e.message}") }
-        }
+        openUrl(downloadUrl)
     }
 
     fun shareText(text: String) {
-        val intent = Intent(Intent.ACTION_SEND).apply {
-            type = "text/plain"
-            putExtra(Intent.EXTRA_TEXT, text)
+        try {
+            val intent = Intent(Intent.ACTION_SEND).apply {
+                type = "text/plain"
+                putExtra(Intent.EXTRA_TEXT, text)
+            }
+            context.startActivity(Intent.createChooser(intent, "Share"))
+        } catch (e: Exception) {
+            showMessage("Could not share: ${e.message}")
         }
-        context.startActivity(Intent.createChooser(intent, "Share"))
     }
 
     Scaffold(
@@ -287,12 +304,37 @@ fun TorrentDetailScreen(
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(Modifier.height(16.dp))
-                    InfoRow(label = "Date", value = torrent.pubDate)
+                    InfoRow(label = "Date", value = formattedDate.ifEmpty { torrent.pubDate })
                     if (torrent.infoHash.isNotEmpty()) {
                         Spacer(Modifier.height(10.dp))
                         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
                         Spacer(Modifier.height(10.dp))
                         InfoRow(label = "Info Hash", value = torrent.infoHash)
+                    }
+                }
+            }
+
+            if (commentsState.error != null && commentsState.description.isEmpty() && !commentsState.isLoading) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.errorContainer
+                    ),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Column(modifier = Modifier.padding(20.dp)) {
+                        Text(
+                            text = "Could not load description, files, or comments",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onErrorContainer
+                        )
+                        Spacer(Modifier.height(12.dp))
+                        Button(
+                            onClick = { commentsViewModel.retry(torrent.id) },
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text("Retry")
+                        }
                     }
                 }
             }
@@ -437,10 +479,18 @@ fun TorrentDetailScreen(
                         }
                         commentsState.error != null -> {
                             Text(
-                                text = "Could not load comments",
+                                text = commentsState.error ?: "Could not load details",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.error
                             )
+                            Spacer(Modifier.height(8.dp))
+                            Button(
+                                onClick = { commentsViewModel.retry(torrent.id) },
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Text("Retry")
+                            }
                             if (torrent.guid.isNotEmpty()) {
                                 Spacer(Modifier.height(8.dp))
                                 OutlinedButton(
@@ -526,7 +576,11 @@ private fun CommentItem(comment: TorrentComment) {
                 }
                 if (comment.avatarUrl.isNotEmpty()) {
                     AsyncImage(
-                        model = comment.avatarUrl,
+                        model = ImageRequest.Builder(LocalContext.current)
+                            .data(comment.avatarUrl)
+                            .size(96)
+                            .crossfade(true)
+                            .build(),
                         contentDescription = "${comment.username}'s avatar",
                         contentScale = ContentScale.Crop,
                         modifier = Modifier
@@ -564,7 +618,9 @@ private fun MarkdownContent(markdown: String, modifier: Modifier = Modifier) {
     val textSizeSp = MaterialTheme.typography.bodySmall.fontSize.value
     val markwon = remember(context) {
         Markwon.builder(context)
-            .usePlugin(ImagesPlugin.create())
+            .usePlugin(ImagesPlugin.create { plugin ->
+                plugin.errorHandler { _, _ -> null }
+            })
             .usePlugin(TablePlugin.create(context))
             .usePlugin(StrikethroughPlugin.create())
             .usePlugin(LinkifyPlugin.create(true))

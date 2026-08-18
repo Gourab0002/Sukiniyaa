@@ -2,12 +2,15 @@ package com.nyaa.sukiniyaa.ui.viewmodel
 
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
 import com.nyaa.sukiniyaa.data.model.Torrent
 import com.nyaa.sukiniyaa.data.repository.BookmarkRepository
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class BookmarkViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -21,24 +24,37 @@ class BookmarkViewModel(application: Application) : AndroidViewModel(application
     }
 
     private fun loadBookmarks() {
-        _bookmarks.update { repository.getBookmarks() }
+        viewModelScope.launch {
+            _bookmarks.value = withContext(Dispatchers.IO) { repository.getBookmarks() }
+        }
     }
 
     fun toggleBookmark(torrent: Torrent) {
-        if (repository.isBookmarked(torrent.id)) {
-            repository.removeBookmark(torrent.id)
-        } else {
-            repository.addBookmark(torrent)
+        viewModelScope.launch {
+            _bookmarks.value = withContext(Dispatchers.IO) {
+                if (repository.isBookmarked(torrent.id.ifEmpty { torrent.infoHash })) {
+                    repository.removeBookmark(torrent.id.ifEmpty { torrent.infoHash })
+                } else {
+                    repository.addBookmark(torrent)
+                }
+                repository.getBookmarks()
+            }
         }
-        loadBookmarks()
     }
 
     fun removeBookmark(torrentId: String) {
-        repository.removeBookmark(torrentId)
-        loadBookmarks()
+        viewModelScope.launch {
+            _bookmarks.value = withContext(Dispatchers.IO) {
+                repository.removeBookmark(torrentId)
+                repository.getBookmarks()
+            }
+        }
     }
 
     fun isBookmarked(torrentId: String): Boolean {
-        return _bookmarks.value.any { it.id == torrentId }
+        return _bookmarks.value.any { it.id == torrentId || it.infoHash == torrentId }
     }
+
+    fun torrentByNavId(navId: String): Torrent? =
+        _bookmarks.value.find { it.matchesNavId(navId) }
 }

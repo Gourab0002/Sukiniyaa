@@ -1,12 +1,5 @@
 package com.nyaa.sukiniyaa.ui.screens
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -14,6 +7,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -43,8 +37,8 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -65,9 +59,10 @@ fun SearchHistoryScreen(
     searchHistoryViewModel: SearchHistoryViewModel = viewModel(),
     bottomPadding: Dp = 0.dp
 ) {
-    val history by searchHistoryViewModel.history.collectAsState()
+    val history by searchHistoryViewModel.history.collectAsStateWithLifecycle()
 
     Scaffold(
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             TopAppBar(
                 title = {
@@ -155,43 +150,33 @@ fun SearchHistoryScreen(
                                 }
                             }
                         )
-                        AnimatedVisibility(
-                            visible = true,
-                            enter = fadeIn(
-                                spring(stiffness = Spring.StiffnessLow)
-                            ) + slideInVertically(
-                                spring(stiffness = Spring.StiffnessLow)
-                            ) { it / 3 },
-                            exit = fadeOut(tween(200))
-                        ) {
-                            SwipeToDismissBox(
-                                state = dismissState,
-                                backgroundContent = {
-                                    Box(
-                                        modifier = Modifier.fillMaxSize(),
-                                        contentAlignment = Alignment.CenterEnd
+                        SwipeToDismissBox(
+                            state = dismissState,
+                            backgroundContent = {
+                                Box(
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentAlignment = Alignment.CenterEnd
+                                ) {
+                                    Surface(
+                                        shape = CircleShape,
+                                        color = MaterialTheme.colorScheme.errorContainer,
+                                        modifier = Modifier.padding(end = 16.dp)
                                     ) {
-                                        Surface(
-                                            shape = CircleShape,
-                                            color = MaterialTheme.colorScheme.errorContainer,
-                                            modifier = Modifier.padding(end = 16.dp)
-                                        ) {
-                                            IconButton(onClick = { searchHistoryViewModel.removeEntry(entry.query) }) {
-                                                Icon(
-                                                    Icons.Default.Delete,
-                                                    contentDescription = "Remove from history",
-                                                    tint = MaterialTheme.colorScheme.onErrorContainer
-                                                )
-                                            }
+                                        IconButton(onClick = { searchHistoryViewModel.removeEntry(entry.query) }) {
+                                            Icon(
+                                                Icons.Default.Delete,
+                                                contentDescription = "Remove from history",
+                                                tint = MaterialTheme.colorScheme.onErrorContainer
+                                            )
                                         }
                                     }
                                 }
-                            ) {
-                                SearchHistoryCard(
-                                    entry = entry,
-                                    onClick = { onHistoryItemClick(entry.query) }
-                                )
                             }
+                        ) {
+                            SearchHistoryCard(
+                                entry = entry,
+                                onClick = { onHistoryItemClick(entry.query) }
+                            )
                         }
                     }
                 }
