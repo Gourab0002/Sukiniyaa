@@ -1,6 +1,5 @@
 package com.nyaa.sukiniyaa
 
-import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -8,7 +7,6 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
@@ -49,6 +47,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
@@ -69,6 +68,7 @@ import com.nyaa.sukiniyaa.ui.theme.ThemePreferences
 import com.nyaa.sukiniyaa.ui.viewmodel.BookmarkViewModel
 import com.nyaa.sukiniyaa.ui.viewmodel.SearchHistoryViewModel
 import com.nyaa.sukiniyaa.ui.viewmodel.SearchViewModel
+import com.nyaa.sukiniyaa.util.HighRefreshRate
 import java.net.URLDecoder
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
@@ -78,18 +78,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         AppHttpClient.configure(cacheDir)
         enableEdgeToEdge()
-        val currentDisplay = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            display
-        } else {
-            @Suppress("DEPRECATION")
-            windowManager.defaultDisplay
-        }
-        val maxRefreshRate = currentDisplay?.supportedModes?.maxOfOrNull { it.refreshRate }
-        if (maxRefreshRate != null) {
-            window.attributes = window.attributes.apply {
-                preferredRefreshRate = maxRefreshRate
-            }
-        }
+        HighRefreshRate.apply(this)
         setContent {
             val themePrefs = remember { ThemePreferences(this) }
             var themeIndex by remember { mutableIntStateOf(themePrefs.themeIndex) }
@@ -105,7 +94,29 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+
+    override fun onResume() {
+        super.onResume()
+        HighRefreshRate.apply(this)
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) {
+            HighRefreshRate.apply(this)
+        }
+    }
 }
+
+private val navFadeSpring = spring<Float>(
+    dampingRatio = Spring.DampingRatioNoBouncy,
+    stiffness = Spring.StiffnessMedium
+)
+
+private val navSlideSpring = spring<IntOffset>(
+    dampingRatio = Spring.DampingRatioNoBouncy,
+    stiffness = Spring.StiffnessMedium
+)
 
 private data class BottomNavItem(
     val route: String,
@@ -205,10 +216,16 @@ fun SukiniyaaApp(
         NavHost(
             navController = navController,
             startDestination = "search",
-            enterTransition = { fadeIn(tween(200)) + slideInHorizontally(tween(250)) { it / 6 } },
-            exitTransition = { fadeOut(tween(200)) },
-            popEnterTransition = { fadeIn(tween(200)) + slideInHorizontally(tween(250)) { -it / 6 } },
-            popExitTransition = { fadeOut(tween(200)) + slideOutHorizontally(tween(250)) { it / 6 } }
+            enterTransition = {
+                fadeIn(navFadeSpring) + slideInHorizontally(navSlideSpring) { it / 8 }
+            },
+            exitTransition = { fadeOut(navFadeSpring) },
+            popEnterTransition = {
+                fadeIn(navFadeSpring) + slideInHorizontally(navSlideSpring) { -it / 8 }
+            },
+            popExitTransition = {
+                fadeOut(navFadeSpring) + slideOutHorizontally(navSlideSpring) { it / 8 }
+            }
         ) {
             composable("search") {
                 SearchScreen(
