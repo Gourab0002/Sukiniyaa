@@ -58,6 +58,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.nyaa.sukiniyaa.data.model.Torrent
+import com.nyaa.sukiniyaa.data.network.AppHttpClient
 import com.nyaa.sukiniyaa.ui.screens.BookmarksScreen
 import com.nyaa.sukiniyaa.ui.screens.SearchHistoryScreen
 import com.nyaa.sukiniyaa.ui.screens.SearchScreen
@@ -75,6 +76,7 @@ import java.nio.charset.StandardCharsets
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        AppHttpClient.configure(cacheDir)
         enableEdgeToEdge()
         val currentDisplay = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             display
@@ -139,6 +141,12 @@ fun SukiniyaaApp(
     val bookmarkViewModel: BookmarkViewModel = viewModel()
 
     val showBottomBar = currentRoute?.startsWith("detail") != true
+    val openTorrent = remember(navController) {
+        { torrent: Torrent ->
+            selectedTorrent = torrent
+            navController.navigate("detail/${encodeNavId(torrent.navId())}")
+        }
+    }
 
     Scaffold(
         bottomBar = {
@@ -204,10 +212,7 @@ fun SukiniyaaApp(
         ) {
             composable("search") {
                 SearchScreen(
-                    onTorrentClick = { torrent ->
-                        selectedTorrent = torrent
-                        navController.navigate("detail/${encodeNavId(torrent.navId())}")
-                    },
+                    onTorrentClick = openTorrent,
                     bottomPadding = innerPadding.calculateBottomPadding(),
                     searchViewModel = searchViewModel,
                     searchHistoryViewModel = searchHistoryViewModel
@@ -229,10 +234,7 @@ fun SukiniyaaApp(
             }
             composable("bookmarks") {
                 BookmarksScreen(
-                    onTorrentClick = { torrent ->
-                        selectedTorrent = torrent
-                        navController.navigate("detail/${encodeNavId(torrent.navId())}")
-                    },
+                    onTorrentClick = openTorrent,
                     bookmarkViewModel = bookmarkViewModel,
                     bottomPadding = innerPadding.calculateBottomPadding()
                 )

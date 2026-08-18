@@ -58,8 +58,11 @@ class SukebeiRssParserTest {
         assertEquals(3, torrent.comments)
         assertTrue(torrent.trusted)
         assertFalse(torrent.remake)
-        assertTrue(torrent.magnetLink.startsWith("magnet:?xt=urn:btih:ABCDEF"))
-        assertTrue(torrent.magnetLink.contains("Test"))
+        assertEquals("", torrent.magnetLink)
+        val magnet = SukebeiRssParser.buildMagnetLink(torrent.infoHash, torrent.title)
+        assertTrue(magnet.startsWith("magnet:?xt=urn:btih:ABCDEF"))
+        assertTrue(magnet.contains("Test"))
+        assertEquals(magnet, torrent.resolvedMagnet())
     }
 
     @Test

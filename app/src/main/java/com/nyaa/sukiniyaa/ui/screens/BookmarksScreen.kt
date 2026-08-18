@@ -156,7 +156,7 @@ fun BookmarksScreen(
                                 }
                             }
                         ) {
-                            TorrentCard(torrent = torrent, onClick = { onTorrentClick(torrent) })
+                            TorrentCard(torrent = torrent, onClick = onTorrentClick)
                         }
                     }
                 }

@@ -3,6 +3,7 @@ package com.nyaa.sukiniyaa.ui.viewmodel
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.nyaa.sukiniyaa.data.api.withMagnet
 import com.nyaa.sukiniyaa.data.model.Torrent
 import com.nyaa.sukiniyaa.data.repository.BookmarkRepository
 import kotlinx.coroutines.Dispatchers
@@ -30,24 +31,28 @@ class BookmarkViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun toggleBookmark(torrent: Torrent) {
-        viewModelScope.launch {
-            _bookmarks.value = withContext(Dispatchers.IO) {
-                if (repository.isBookmarked(torrent.id.ifEmpty { torrent.infoHash })) {
-                    repository.removeBookmark(torrent.id.ifEmpty { torrent.infoHash })
-                } else {
-                    repository.addBookmark(torrent)
-                }
-                repository.getBookmarks()
+        val identity = torrent.identity()
+        val stored = torrent.withMagnet()
+        val currentlyBookmarked = _bookmarks.value.any { it.identity() == identity }
+        val next = if (currentlyBookmarked) {
+            _bookmarks.value.filter { it.identity() != identity }
+        } else {
+            listOf(stored) + _bookmarks.value
+        }
+        _bookmarks.value = next
+        viewModelScope.launch(Dispatchers.IO) {
+            if (currentlyBookmarked) {
+                repository.removeBookmark(torrent.id.ifEmpty { torrent.infoHash })
+            } else {
+                repository.addBookmark(stored)
             }
         }
     }
 
     fun removeBookmark(torrentId: String) {
-        viewModelScope.launch {
-            _bookmarks.value = withContext(Dispatchers.IO) {
-                repository.removeBookmark(torrentId)
-                repository.getBookmarks()
-            }
+        _bookmarks.value = _bookmarks.value.filter { it.id != torrentId && it.infoHash != torrentId }
+        viewModelScope.launch(Dispatchers.IO) {
+            repository.removeBookmark(torrentId)
         }
     }
 

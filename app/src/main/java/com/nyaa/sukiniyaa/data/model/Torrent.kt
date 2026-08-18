@@ -1,8 +1,10 @@
 package com.nyaa.sukiniyaa.data.model
 
 import android.os.Parcelable
+import androidx.compose.runtime.Immutable
 import kotlinx.parcelize.Parcelize
 
+@Immutable
 @Parcelize
 data class Torrent(
     val id: String,
@@ -85,6 +87,7 @@ data class SearchParams(
     val page: Int = 1
 )
 
+@Immutable
 data class TorrentComment(
     val id: String,
     val username: String,
@@ -93,6 +96,7 @@ data class TorrentComment(
     val content: String
 )
 
+@Immutable
 data class TorrentFileEntry(
     val name: String,
     val size: String

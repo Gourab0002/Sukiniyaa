@@ -15,10 +15,13 @@ object SukebeiRssParser {
         "http://tracker.openbittorrent.com:80/announce"
     )
 
+    private val TRACKER_QUERY: String =
+        TRACKERS.joinToString(separator = "") { "&tr=${URLEncoder.encode(it, "UTF-8")}" }
+
     fun buildMagnetLink(infoHash: String, title: String): String {
+        if (infoHash.isEmpty()) return ""
         val encodedTitle = URLEncoder.encode(title, "UTF-8").replace("+", "%20")
-        val trackerParams = TRACKERS.joinToString("") { "&tr=${URLEncoder.encode(it, "UTF-8")}" }
-        return "magnet:?xt=urn:btih:$infoHash&dn=$encodedTitle$trackerParams"
+        return "magnet:?xt=urn:btih:$infoHash&dn=$encodedTitle$TRACKER_QUERY"
     }
 
     fun parse(inputStream: InputStream, parser: XmlPullParser = newDefaultParser()): List<Torrent> {
@@ -107,11 +110,6 @@ object SukebeiRssParser {
                     if (inItem) {
                         val text = textBuffer.toString().trim()
                         if (name == "item") {
-                            val magnetLink = if (infoHash.isNotEmpty()) {
-                                buildMagnetLink(infoHash, title)
-                            } else {
-                                ""
-                            }
                             torrents.add(
                                 Torrent(
                                     id = id,
@@ -128,7 +126,7 @@ object SukebeiRssParser {
                                     comments = comments,
                                     trusted = trusted,
                                     remake = remake,
-                                    magnetLink = magnetLink
+                                    magnetLink = ""
                                 )
                             )
                             inItem = false
@@ -149,4 +147,15 @@ object SukebeiRssParser {
         parser.setFeature(XmlPullParser.FEATURE_PROCESS_NAMESPACES, true)
         return parser
     }
+}
+
+fun Torrent.resolvedMagnet(): String = when {
+    magnetLink.isNotEmpty() -> magnetLink
+    infoHash.isNotEmpty() -> SukebeiRssParser.buildMagnetLink(infoHash, title)
+    else -> ""
+}
+
+fun Torrent.withMagnet(): Torrent {
+    val magnet = resolvedMagnet()
+    return if (magnet == magnetLink) this else copy(magnetLink = magnet)
 }

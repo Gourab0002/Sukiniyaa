@@ -19,7 +19,6 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 data class SearchUiState(
-    val query: String = "",
     val torrents: List<Torrent> = emptyList(),
     val isLoading: Boolean = false,
     val isLoadingMore: Boolean = false,
@@ -33,6 +32,9 @@ class SearchViewModel : ViewModel() {
 
     private val repository = SukebeiRepository()
 
+    private val _query = MutableStateFlow("")
+    val query: StateFlow<String> = _query.asStateFlow()
+
     private val _uiState = MutableStateFlow(SearchUiState())
     val uiState: StateFlow<SearchUiState> = _uiState.asStateFlow()
 
@@ -41,7 +43,7 @@ class SearchViewModel : ViewModel() {
     private var requestGeneration: Long = 0L
 
     fun updateQuery(query: String) {
-        _uiState.update { it.copy(query = query, searchParams = it.searchParams.copy(query = query)) }
+        _query.value = query
     }
 
     fun updateCategory(category: Category) {
@@ -62,7 +64,7 @@ class SearchViewModel : ViewModel() {
 
     fun resetFilters() {
         _uiState.update { state ->
-            state.copy(searchParams = SearchParams(query = state.query))
+            state.copy(searchParams = SearchParams(query = _query.value))
         }
     }
 
@@ -70,7 +72,7 @@ class SearchViewModel : ViewModel() {
         loadMoreJob?.cancel()
         searchJob?.cancel()
 
-        val params = _uiState.value.searchParams.copy(page = 1)
+        val params = _uiState.value.searchParams.copy(query = _query.value, page = 1)
         val generation = ++requestGeneration
 
         _uiState.update {
